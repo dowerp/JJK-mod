@@ -1,0 +1,329 @@
+package com.dowerp.sukuna;
+
+import com.dowerp.sukuna.entity.MahoragaEntity;
+import com.dowerp.sukuna.tasks.ChosoTasks;
+import com.dowerp.sukuna.tasks.GojoTasks;
+import com.dowerp.sukuna.tasks.HeianTasks;
+import com.dowerp.sukuna.tasks.SukunaTasks;
+import com.dowerp.sukuna.tasks.TodoTasks;
+import com.dowerp.sukuna.tasks.YujiTasks;
+import net.minecraft.entity.effect.StatusEffectCategory;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+
+import java.util.ArrayList;
+
+public final class Abilities {
+    private Abilities() {}
+
+    public static void handle(ServerPlayerEntity p, int index) {
+        Ability[] all = Ability.values();
+        if (index < 0 || index >= all.length) return;
+        Ability a = all[index];
+        SukunaState s = Players.get(p);
+        s.fingers = p.getAttachedOrElse(Players.FINGERS, 1);
+
+        if (!p.isAlive() || p.isSpectator()) return;
+
+        s.character = Players.character(p);
+        if (!s.character.playable) {
+            p.sendMessage(Text.translatable("sukuna.msg.char_locked", s.character.displayName()), true);
+            return;
+        }
+
+        ServerWorld w = Fx.world(p);
+        long now = w.getTime();
+
+        if (a == Ability.TRANSFORM) {
+            handleTransform(p, s, w);
+            return;
+        }
+
+        if (now < s.cooldowns[index]) {
+            long seconds = (s.cooldowns[index] - now + 19L) / 20L;
+            p.sendMessage(Text.translatable("sukuna.msg.cooldown", seconds), true);
+            return;
+        }
+
+        if (a != Ability.WHEEL_ADAPTATION && a != Ability.REVERSE_CURSED && now < s.busyUntil) {
+            p.sendMessage(Text.translatable("sukuna.msg.busy"), true);
+            return;
+        }
+
+        boolean openDomain = s.openDomainReady();
+        boolean meterDomain = a == Ability.DOMAIN_EXPANSION && s.meterFull() && !s.form.isChoso() && a.availableIn(s.form);
+        if (!SukunaMod.config.freeCursedEnergy && !meterDomain && s.ce < a.costFor(s.form, openDomain)) {
+            p.sendMessage(Text.translatable("sukuna.msg.no_energy"), true);
+            return;
+        }
+
+        boolean ok = switch (s.form) {
+            case YUJI -> dispatchYuji(a, p, s, w, now);
+            case SUKUNA -> dispatchSukuna(a, p, s, w, now);
+            case HEIAN -> dispatchHeian(a, p, s, w, now);
+            case GOJO, GOJO_AWAKENED -> dispatchGojo(a, p, s, w);
+            case CHOSO, CHOSO_WING -> dispatchChoso(a, p, s, w);
+            case TODO, TODO_AWAKENED -> dispatchTodo(a, p, s, w);
+        };
+
+        if (ok) {
+            AbilitySounds.play(w, p, s.form, a);
+            if (meterDomain) {
+                s.domainMeter = Math.max(0.0, s.domainMeter - 60.0);
+            } else {
+                s.ce = Math.max(0.0, s.ce - a.costFor(s.form, openDomain));
+            }
+            s.cooldowns[index] = now + a.cooldownFor(s.form, openDomain);
+            if (s.noCooldown) {
+                s.cooldowns[index] = 0L;
+            }
+            Players.broadcastAnim(p, a, s.form);
+            if (a == Ability.ULTIMATE_SLASH && !s.form.isGojo() && !s.form.isTodo()) {
+                for (int i = 0; i < s.cooldowns.length; i++) {
+                    if (i != index) s.cooldowns[i] = 0L;
+                }
+                p.sendMessage(Text.translatable("sukuna.msg.ultimate_refresh"), true);
+            }
+            if (s.form.isChoso() && a == Ability.SPECIAL_ATTACK) {
+                s.cooldowns[index] += s.form == SukunaForm.CHOSO_WING ? ChosoTasks.STACK_TICKS : ChosoTasks.RED_SCALE_TICKS;
+            }
+            if (s.form.isChoso() && a == Ability.DOMAIN_EXPANSION) {
+                s.cooldowns[index] += ChosoTasks.HARDEN_TICKS;
+            }
+            if (a != Ability.WHEEL_ADAPTATION && a != Ability.REVERSE_CURSED) {
+                s.busyUntil = Math.max(s.busyUntil, now + 18L);
+            }
+        }
+    }
+
+    private static boolean dispatchGojo(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        boolean max = s.form == SukunaForm.GOJO_AWAKENED;
+        if (!a.availableIn(s.form)) {
+            p.sendMessage(Text.translatable("sukuna.msg.gojo_no_technique"), true);
+            return false;
+        }
+        return switch (a) {
+            case PRIMARY_ATTACK -> GojoTasks.castBlue(p, s, max);
+            case SECONDARY_ATTACK -> GojoTasks.castRed(p, s, max);
+            case UTILITY_TECHNIQUE -> GojoTasks.castCombo(p, s);
+            case SPECIAL_ATTACK -> GojoTasks.castStepKick(p, s);
+            case ULTIMATE_SLASH -> GojoTasks.castPurple(p, s);
+            case DOMAIN_EXPANSION -> max ? Seals.then(p, s, () -> VoidDomainTask.cast(p, s)) : GojoTasks.castInstantDomain(p, s);
+            case REVERSE_CURSED -> reverse(p, s, w, max ? 30.0F : 16.0F);
+            default -> {
+                p.sendMessage(Text.translatable("sukuna.msg.gojo_no_technique"), true);
+                yield false;
+            }
+        };
+    }
+
+    private static boolean dispatchTodo(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        if (!a.availableIn(s.form)) {
+            p.sendMessage(Text.translatable("sukuna.msg.todo_no_technique"), true);
+            return false;
+        }
+        return switch (a) {
+            case PRIMARY_ATTACK -> TodoTasks.castBoogieWoogie(p, s);
+            case SECONDARY_ATTACK -> TodoTasks.castDashStrike(p, s);
+            case UTILITY_TECHNIQUE -> TodoTasks.castClapDash(p, s);
+            case SPECIAL_ATTACK -> TodoTasks.castBoost(p, s);
+            case ULTIMATE_SLASH -> TodoTasks.castMaximum(p, s);
+            case REVERSE_CURSED -> reverse(p, s, w, 14.0F);
+            default -> {
+                p.sendMessage(Text.translatable("sukuna.msg.todo_no_technique"), true);
+                yield false;
+            }
+        };
+    }
+
+    private static boolean dispatchChoso(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        boolean blood = switch (a) {
+            case PRIMARY_ATTACK, SECONDARY_ATTACK, UTILITY_TECHNIQUE, ULTIMATE_SLASH, OPEN_DOMAIN, DISMANTLE_STORM, BLACK_FLASH -> true;
+            default -> false;
+        };
+        boolean boosted = blood && ChosoTasks.convergenceReady(s, w.getTime());
+        if (boosted) {
+            s.convergenceMul = 1.5;
+        }
+        boolean ok;
+        try {
+            ok = chosoInner(a, p, s, w);
+        } finally {
+            s.convergenceMul = 1.0;
+        }
+        if (boosted && ok) {
+            ChosoTasks.consumeConvergence(p, s);
+        }
+        return ok;
+    }
+
+    private static boolean chosoInner(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        boolean wing = s.form == SukunaForm.CHOSO_WING;
+        if (!a.availableIn(s.form)) {
+            p.sendMessage(Text.translatable("sukuna.msg.choso_no_technique"), true);
+            return false;
+        }
+        return switch (a) {
+            case PRIMARY_ATTACK -> ChosoTasks.castPiercing(p, s, wing);
+            case SECONDARY_ATTACK -> ChosoTasks.castMeteorite(p, s, wing);
+            case UTILITY_TECHNIQUE -> ChosoTasks.castBloodEdge(p, s);
+            case SPECIAL_ATTACK -> ChosoTasks.toggleScale(p, s, wing);
+            case DOMAIN_EXPANSION -> ChosoTasks.toggleHardening(p, s);
+            case REVERSE_CURSED -> ChosoTasks.castCoagulation(p, s, wing);
+            case ULTIMATE_SLASH -> ChosoTasks.castSupernova(p, s);
+            case OPEN_DOMAIN -> ChosoTasks.castSlicingExorcism(p, s);
+            case DISMANTLE_STORM -> ChosoTasks.castWingBarrage(p, s);
+            case BLACK_FLASH -> ChosoTasks.castBloodTorrent(p, s);
+            default -> {
+                p.sendMessage(Text.translatable("sukuna.msg.choso_no_technique"), true);
+                yield false;
+            }
+        };
+    }
+
+    private static boolean dispatchYuji(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w, long now) {
+        return switch (a) {
+            case PRIMARY_ATTACK -> YujiTasks.castDivergentFist(p, s);
+            case SECONDARY_ATTACK -> YujiTasks.castCursedKick(p, s);
+            case UTILITY_TECHNIQUE -> YujiTasks.triggerFocusBlackFlash(p, s);
+            case SPECIAL_ATTACK -> YujiTasks.castReinforcement(p, s);
+            case ULTIMATE_SLASH -> YujiTasks.castBlackFlashBarrage(p, s);
+            case OPEN_DOMAIN, DISMANTLE_STORM, BLACK_FLASH, FOUR_ARM_FLURRY -> {
+                p.sendMessage(Text.translatable("sukuna.msg.not_in_yuji"), true);
+                yield false;
+            }
+            case DOMAIN_EXPANSION -> Seals.then(p, s, () -> YujiTasks.castYujiDomain(p, s));
+            case WHEEL_ADAPTATION, SUMMON_MAHORAGA -> {
+                p.sendMessage(Text.translatable("sukuna.msg.no_shadows_yuji"), true);
+                yield false;
+            }
+            case REVERSE_CURSED -> reverse(p, s, w, 10.0F);
+            default -> false;
+        };
+    }
+
+    private static boolean dispatchSukuna(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w, long now) {
+        return switch (a) {
+            case PRIMARY_ATTACK -> DismantleTask.cast(p, s);
+            case SECONDARY_ATTACK -> CleaveTask.cast(p, s);
+            case UTILITY_TECHNIQUE -> WebTask.cast(p, s);
+            case SPECIAL_ATTACK -> FugaTask.cast(p, s);
+            case ULTIMATE_SLASH -> WorldSlashTask.cast(p, s, false);
+            case DOMAIN_EXPANSION -> {
+                boolean open = s.openDomainReady();
+                yield Seals.then(p, s, () -> DomainTask.cast(p, s, open));
+            }
+            case OPEN_DOMAIN -> {
+                p.sendMessage(Text.translatable("sukuna.msg.open_replaces_closed"), true);
+                yield false;
+            }
+            case DISMANTLE_STORM -> SukunaTasks.dismantleStorm(p, s);
+            case BLACK_FLASH -> SukunaTasks.blackFlash(p, s);
+            case FOUR_ARM_FLURRY -> {
+                p.sendMessage(Text.translatable("sukuna.msg.heian_only"), true);
+                yield false;
+            }
+            case WHEEL_ADAPTATION -> toggleWheel(p, s, w);
+            case SUMMON_MAHORAGA -> MahoragaEntity.summon(p, s);
+            case REVERSE_CURSED -> reverse(p, s, w, 16.0F);
+            default -> false;
+        };
+    }
+
+    private static boolean dispatchHeian(Ability a, ServerPlayerEntity p, SukunaState s, ServerWorld w, long now) {
+        return switch (a) {
+            case PRIMARY_ATTACK -> HeianTasks.castKamaitachi(p, s);
+            case SECONDARY_ATTACK -> HeianTasks.castKamutoke(p, s);
+            case UTILITY_TECHNIQUE -> WebTask.cast(p, s);
+            case SPECIAL_ATTACK -> FugaTask.cast(p, s);
+            case ULTIMATE_SLASH -> HeianTasks.castTrueWorldSlash(p, s);
+            case DOMAIN_EXPANSION -> Seals.then(p, s, () -> DomainTask.cast(p, s, true));
+            case OPEN_DOMAIN -> {
+                p.sendMessage(Text.translatable("sukuna.msg.heian_domain_open"), true);
+                yield false;
+            }
+            case DISMANTLE_STORM -> SukunaTasks.dismantleStorm(p, s);
+            case BLACK_FLASH -> SukunaTasks.blackFlash(p, s);
+            case FOUR_ARM_FLURRY -> HeianTasks.castFourArmFlurry(p, s);
+            case WHEEL_ADAPTATION, SUMMON_MAHORAGA -> {
+                p.sendMessage(Text.translatable("sukuna.msg.heian_no_mahoraga"), true);
+                yield false;
+            }
+            case REVERSE_CURSED -> reverse(p, s, w, 28.0F);
+            default -> false;
+        };
+    }
+
+    private static void handleTransform(ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        long now = w.getTime();
+        if (s.form.isGojo()) {
+            GojoTasks.transform(p, s, w);
+            return;
+        }
+        if (s.form.isChoso()) {
+            ChosoTasks.transform(p, s, w);
+            return;
+        }
+        if (s.form.isTodo()) {
+            TodoTasks.transform(p, s, w);
+            return;
+        }
+        if (s.form == SukunaForm.YUJI) {
+            s.form = SukunaForm.SUKUNA;
+            p.sendMessage(Text.translatable("sukuna.msg.switched_sukuna"), false);
+            AnimeVfx.playSukunaAwakening(w, p);
+        } else if (s.form == SukunaForm.SUKUNA) {
+            if (s.hostileKills >= SukunaState.HEIAN_KILLS) {
+                s.form = SukunaForm.HEIAN;
+                s.formUntil = now + SukunaState.HEIAN_DURATION_TICKS;
+                s.wheel = false;
+                p.sendMessage(Text.translatable("sukuna.msg.switched_heian"), false);
+                AnimeVfx.playHeianIncarnation(w, p);
+            } else {
+                s.form = SukunaForm.YUJI;
+                s.wheel = false;
+                p.sendMessage(Text.translatable("sukuna.msg.switched_yuji"), false);
+                Fx.sound(w, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 1.0F, 1.0F);
+            }
+        } else {
+            Players.endHeian(p, s, true);
+            return;
+        }
+        Players.applyFormAttributes(p, s.form);
+    }
+
+    private static boolean toggleWheel(ServerPlayerEntity p, SukunaState s, ServerWorld w) {
+        s.wheel = !s.wheel;
+        if (s.wheel) {
+            s.wheelAngle = 0.0F;
+            s.wheelTarget = 0.0F;
+            s.adaptation.reset();
+            Fx.sound(w, p.getX(), p.getY(), p.getZ(), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.2F, 1.3F);
+            AnimeVfx.ringShockwave(w, p.getEyePos().add(0, 0.8, 0), 1.2, Fx.GOLD);
+            p.sendMessage(Text.translatable("sukuna.msg.wheel_on"), true);
+        } else {
+            Fx.sound(w, p.getX(), p.getY(), p.getZ(), SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 1.0F, 1.2F);
+            p.sendMessage(Text.translatable("sukuna.msg.wheel_off"), true);
+        }
+        return true;
+    }
+
+    private static boolean reverse(ServerPlayerEntity p, SukunaState s, ServerWorld w, float baseHeal) {
+        for (StatusEffectInstance e : new ArrayList<>(p.getStatusEffects())) {
+            if (e.getEffectType().value().getCategory() == StatusEffectCategory.HARMFUL) {
+                p.removeStatusEffect(e.getEffectType());
+            }
+        }
+        float hpScale = (float) (s.form.targetHp / 60.0);
+        p.heal((baseHeal + (float) (s.statFingers() * 0.8)) * hpScale);
+        Fx.far(w, ParticleTypes.HEART, p.getX(), p.getY() + 1.2, p.getZ(), 10, 0.4, 0.6, 0.4, 0.02);
+        Fx.far(w, ParticleTypes.HAPPY_VILLAGER, p.getX(), p.getY() + 1.0, p.getZ(), 20, 0.5, 0.8, 0.5, 0.05);
+        Fx.sound(w, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8F, 0.7F);
+        return true;
+    }
+}

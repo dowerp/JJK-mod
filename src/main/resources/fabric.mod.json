@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "sukuna",
+  "version": "${version}",
+  "name": "Sukuna: King of Curses",
+  "description": "Techniques of Ryomen Sukuna: Dismantle, Cleave, Spiderweb, Fuga, World Cutting Slash, Malevolent Shrine, Mahoraga's Wheel with adaptation and Reverse Cursed Technique.",
+  "authors": ["Dowerp"],
+  "license": "MIT",
+  "icon": "assets/sukuna/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.dowerp.sukuna.SukunaMod"],
+    "client": ["com.dowerp.sukuna.client.SukunaClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*",
+    "geckolib": ">=5.4.5",
+    "player_animation_library": ">=1.1.11"
+  }
+}

@@ -1,0 +1,33 @@
+name: build
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build mod with Gradle
+        run: ./gradlew build --no-daemon -Ploom_version=1.17-SNAPSHOT -Pyarn_mappings=1.21.11+build.6
+
+      - name: Upload Mod Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sukuna-mod
+          path: |
+            build/libs/*[!sources].jar
+          if-no-files-found: error
