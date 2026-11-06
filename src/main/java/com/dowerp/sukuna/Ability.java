@@ -245,11 +245,11 @@ public enum Ability {
                 default -> 10;
             };
             case MAKI -> switch (this) {
-                case PRIMARY_ATTACK -> 1.25;
-                case SECONDARY_ATTACK -> 4;
-                case UTILITY_TECHNIQUE -> 22;
-                case SPECIAL_ATTACK -> 16;
-                case ULTIMATE_SLASH -> 50;
+                case PRIMARY_ATTACK -> 2;
+                case SECONDARY_ATTACK -> 7;
+                case UTILITY_TECHNIQUE -> 30;
+                case SPECIAL_ATTACK -> 24;
+                case ULTIMATE_SLASH -> 75;
                 default -> 10;
             };
         };

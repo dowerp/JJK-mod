@@ -318,6 +318,12 @@ public final class SukunaClient implements ClientModInitializer {
             for (int i = 0; i < KEYS.length; i++) {
                 while (KEYS[i].wasPressed()) {
                     Ability a = all[i];
+                    if (a == Ability.TRANSFORM && ClientState.form == SukunaForm.MAKI) {
+                        if (client.currentScreen == null) {
+                            client.setScreen(new WeaponWheelScreen(KEYS[i]));
+                        }
+                        continue;
+                    }
                     if (!legacy && a == Ability.REVERSE_CURSED && !client.player.isSneaking()) {
                         continue;
                     }

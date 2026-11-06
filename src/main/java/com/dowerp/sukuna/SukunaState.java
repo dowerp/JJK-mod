@@ -132,7 +132,7 @@ public final class SukunaState {
             case CHOSO_WING -> 1.5;
             case TODO -> 1.2;
             case TODO_AWAKENED -> 1.6;
-            case MAKI -> 1.5;
+            case MAKI -> 1.8;
         };
         return base * convergenceMul * SukunaMod.config.damageMultiplier;
     }

@@ -58,6 +58,7 @@ public final class Players {
     public static final Identifier MOD_TODO_SPEED = SukunaMod.id("todo_speed");
     public static final Identifier MOD_TODO_JUMP = SukunaMod.id("todo_jump");
     private static final Identifier MOD_MAKI_SPEED = SukunaMod.id("maki_speed");
+    public static final float MAKI_DAMAGE_TAKEN = 0.70F;
     public static final double HEIAN_HEIGHT = 2.5;
 
     private static boolean reentry;
@@ -122,9 +123,22 @@ public final class Players {
         s.ce = s.maxCe();
         if (c == SukunaCharacter.MAKI) {
             giveKatana(p);
+        } else {
+            purgeMakiWeapons(p);
         }
         p.sendMessage(Text.translatable("sukuna.msg.char_selected", c.displayName()), true);
         sync(p, s);
+    }
+
+    /** Оружие Маки существует только у Маки: у остальных персонажей оно удаляется из инвентаря. */
+    public static void purgeMakiWeapons(ServerPlayerEntity p) {
+        var inv = p.getInventory();
+        for (int i = 0; i < inv.size(); i++) {
+            var st = inv.getStack(i);
+            if (!st.isEmpty() && (st.isOf(ModItems.SOUL_SPLIT_KATANA) || st.isOf(ModItems.PLAYFUL_CLOUD))) {
+                inv.setStack(i, net.minecraft.item.ItemStack.EMPTY);
+            }
+        }
     }
 
     public static void giveKatana(ServerPlayerEntity p) {
@@ -298,7 +312,7 @@ public final class Players {
             if (form == SukunaForm.HEIAN) {
                 armorAttr.addPersistentModifier(new EntityAttributeModifier(MOD_ARMOR, 6.0, EntityAttributeModifier.Operation.ADD_VALUE));
             } else if (form == SukunaForm.MAKI) {
-                armorAttr.addPersistentModifier(new EntityAttributeModifier(MOD_ARMOR, 2.0, EntityAttributeModifier.Operation.ADD_VALUE));
+                armorAttr.addPersistentModifier(new EntityAttributeModifier(MOD_ARMOR, 3.0, EntityAttributeModifier.Operation.ADD_VALUE));
             }
         }
 
@@ -314,7 +328,7 @@ public final class Players {
         if (speedAttr != null) {
             speedAttr.removeModifier(MOD_MAKI_SPEED);
             if (form == SukunaForm.MAKI) {
-                speedAttr.addPersistentModifier(new EntityAttributeModifier(MOD_MAKI_SPEED, 0.12, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+                speedAttr.addPersistentModifier(new EntityAttributeModifier(MOD_MAKI_SPEED, 0.15, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
             speedAttr.removeModifier(MOD_WING_SPEED);
             if (form == SukunaForm.CHOSO_WING) {
@@ -380,6 +394,9 @@ public final class Players {
             }
             if (p.isAlive() && s.form.isTodo()) {
                 TodoTasks.tick(p, s, w);
+            }
+            if (p.age % 20 == 0 && s.form != SukunaForm.MAKI) {
+                purgeMakiWeapons(p);
             }
             if (p.isAlive()) {
                 if (s.meterOn()) {
@@ -585,6 +602,17 @@ public final class Players {
                 return false;
             }
             return true;
+        }
+
+        if (s.form == SukunaForm.MAKI) {
+            // Небесное ограничение: постоянное снижение любого входящего урона на 30%.
+            reentry = true;
+            try {
+                p.damage(Fx.world(p), source, amount * MAKI_DAMAGE_TAKEN);
+            } finally {
+                reentry = false;
+            }
+            return false;
         }
 
         if (!s.wheel) return true;

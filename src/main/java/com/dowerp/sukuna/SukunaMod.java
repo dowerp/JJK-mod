@@ -9,6 +9,7 @@ import com.dowerp.sukuna.net.CharacterPayload;
 import com.dowerp.sukuna.net.DomainMeterPayload;
 import com.dowerp.sukuna.net.HoldPayload;
 import com.dowerp.sukuna.net.M1Payload;
+import com.dowerp.sukuna.net.WeaponPayload;
 import com.dowerp.sukuna.net.RemoteStatePayload;
 import com.dowerp.sukuna.net.StatePayload;
 import com.dowerp.sukuna.tasks.GojoTasks;
@@ -45,10 +46,12 @@ public final class SukunaMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(DomainMeterPayload.ID, DomainMeterPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(M1Payload.ID, M1Payload.CODEC);
         PayloadTypeRegistry.playC2S().register(AdminActionPayload.ID, AdminActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(WeaponPayload.ID, WeaponPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(HoldPayload.ID, (payload, context) -> Players.get(context.player()).heldMask = payload.mask());
         ServerPlayNetworking.registerGlobalReceiver(CharacterPayload.ID, (payload, context) -> Players.select(context.player(), payload.character()));
         ServerPlayNetworking.registerGlobalReceiver(AbilityPayload.ID, (payload, context) -> Abilities.handle(context.player(), payload.ability()));
         ServerPlayNetworking.registerGlobalReceiver(AdminActionPayload.ID, (payload, context) -> AdminCommands.perform(context.player(), payload.action()));
+        ServerPlayNetworking.registerGlobalReceiver(WeaponPayload.ID, (payload, context) -> com.dowerp.sukuna.tasks.MakiTasks.equip(context.player(), payload.weapon()));
         ServerPlayNetworking.registerGlobalReceiver(M1Payload.ID, (payload, context) -> M1.handle(context.player()));
         Players.init();
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {

@@ -160,7 +160,7 @@
   "sukuna.info.gojo": "Satoru Gojo, the strongest. Infinity, Blue, Red, Purple and Unlimited Void; techniques are stronger when awakened.",
   "sukuna.info.choso": "Choso, master of Piercing Blood. Blood techniques, hold the first ability to charge it; King of Wings grants wings and the ultimate.",
   "sukuna.info.megumi": "Megumi Fushiguro: coming soon.",
-  "sukuna.info.maki": "Maki Zenin: no cursed energy, only a body without limits. Hold the Soul Split Katana for Dash, Katana and Absolute Cut. LMB: combo.",
+  "sukuna.info.maki": "Maki Zenin: no cursed energy, takes 30% less damage. Hold U to choose a weapon: katana, Playful Cloud or fists. LMB: combo.",
   "sukuna.info.keys": "1-9: abilities in order, R: domain, G: ultimate, U: change form, J: choose character, E: this info",
   "sukuna.ability.yuji.ultimate_slash": "Black Flash barrage",
   "sukuna.ability.gojo.ultimate_slash": "Hollow Purple",
@@ -217,12 +217,17 @@
   "sukuna.msg.domain_failed": "The domain could not be created. Nothing was spent.",
   "sukuna.msg.not_available": "This technique is not available in the current form.",
   "sukuna.msg.maki_no_transform": "Maki has no other forms.",
-  "sukuna.msg.maki_need_katana": "Hold the Soul Split Katana in your main hand.",
+  "sukuna.msg.maki_need_katana": "Hold a weapon in your main hand (hold U for the weapon wheel).",
   "sukuna.msg.maki_sense": "You sense every curse nearby.",
   "sukuna.msg.maki_interrupted": "Absolute Cut interrupted!",
   "key.sukuna.admin_menu": "Admin menu",
   "sukuna.admin.heal_all": "Heal everyone",
   "sukuna.admin.clear_combat": "Clear combat mode",
   "sukuna.admin.healed": "Healed players: %s",
-  "sukuna.admin.combat_cleared": "Combat mode cleared for: %s"
+  "sukuna.admin.combat_cleared": "Combat mode cleared for: %s",
+  "item.sukuna.playful_cloud": "Playful Cloud",
+  "sukuna.weapon.title": "Choose a weapon",
+  "sukuna.weapon.katana": "Soul Split Katana",
+  "sukuna.weapon.cloud": "Playful Cloud",
+  "sukuna.weapon.fists": "Fists"
 }
