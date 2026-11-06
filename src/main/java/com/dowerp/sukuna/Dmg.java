@@ -18,6 +18,16 @@ public final class Dmg {
         target.damage(w, ds, (float) amount);
     }
 
+    /** Физический урон: броня и защита цели действуют полностью. */
+    public static void physical(ServerPlayerEntity source, LivingEntity target, double amount) {
+        ServerWorld w = Fx.world(source);
+        DamageSource ds = w.getDamageSources().playerAttack(source);
+        target.timeUntilRegen = 0;
+        Players.markCombat(source);
+        target.damage(w, ds, (float) amount);
+        Fx.sound(w, target.getX(), target.getY() + target.getHeight() * 0.5, target.getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 0.8F, 0.9F);
+    }
+
     public static void hit(ServerPlayerEntity source, LivingEntity target, double amount) {
         ServerWorld w = Fx.world(source);
         DamageSource ds = w.getDamageSources().indirectMagic(source, source);

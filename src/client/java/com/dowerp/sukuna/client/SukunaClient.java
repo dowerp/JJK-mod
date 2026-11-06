@@ -86,6 +86,16 @@ public final class SukunaClient implements ClientModInitializer {
                 default -> a.name().substring(0, 3);
             };
         }
+        if (form.isMaki()) {
+            return switch (a) {
+                case PRIMARY_ATTACK -> "Combo";
+                case SECONDARY_ATTACK -> "Dash";
+                case UTILITY_TECHNIQUE -> "Sense";
+                case SPECIAL_ATTACK -> "Katana";
+                case ULTIMATE_SLASH -> "Cut";
+                default -> a.name().substring(0, 3);
+            };
+        }
         if (form.isTodo()) {
             return switch (a) {
                 case PRIMARY_ATTACK -> "Boogie";
@@ -159,6 +169,7 @@ public final class SukunaClient implements ClientModInitializer {
     }
 
     private static KeyBinding selectKey;
+    private static KeyBinding adminKey;
     private static int heldMask;
     private static final int DOUBLE_TAP_TICKS = 6;
     private static final int M1_INTERVAL_TICKS = 10;
@@ -230,6 +241,7 @@ public final class SukunaClient implements ClientModInitializer {
         }
 
         selectKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sukuna.select_character", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, category));
+        adminKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.sukuna.admin_menu", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_GRAVE_ACCENT, category));
 
         ClientPlayNetworking.registerGlobalReceiver(StatePayload.ID, (payload, context) -> ClientState.apply(payload));
         ClientPlayNetworking.registerGlobalReceiver(DomainMeterPayload.ID, (payload, context) -> ClientState.meterTenths = payload.tenths());
@@ -277,6 +289,11 @@ public final class SukunaClient implements ClientModInitializer {
             if (client.player == null) {
                 return;
             }
+            while (adminKey.wasPressed()) {
+                if (client.currentScreen == null) {
+                    client.setScreen(new AdminScreen());
+                }
+            }
             while (selectKey.wasPressed()) {
                 if (client.currentScreen == null) {
                     client.setScreen(new CharacterSelectScreen());
@@ -322,7 +339,7 @@ public final class SukunaClient implements ClientModInitializer {
                 }
             }
             if (!legacy && client.currentScreen == null && SukunaHud.active() && client.options.attackKey.isPressed()
-                && client.player.getMainHandStack().isEmpty() && now - lastM1 >= M1_INTERVAL_TICKS) {
+                && (client.player.getMainHandStack().isEmpty() || ClientState.form == SukunaForm.MAKI) && now - lastM1 >= M1_INTERVAL_TICKS) {
                 lastM1 = now;
                 ClientPlayNetworking.send(M1Payload.INSTANCE);
             }

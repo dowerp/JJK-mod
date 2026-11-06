@@ -12,7 +12,8 @@ public enum SukunaForm {
     CHOSO("sukuna.form.choso", Formatting.DARK_RED, 130.0),
     CHOSO_WING("sukuna.form.choso_wing", Formatting.RED, 170.0),
     TODO("sukuna.form.todo", Formatting.GOLD, 140.0),
-    TODO_AWAKENED("sukuna.form.todo_awakened", Formatting.YELLOW, 180.0);
+    TODO_AWAKENED("sukuna.form.todo_awakened", Formatting.YELLOW, 180.0),
+    MAKI("sukuna.form.maki", Formatting.DARK_GREEN, 150.0);
 
     public final String translationKey;
     public final Formatting color;
@@ -34,6 +35,10 @@ public enum SukunaForm {
 
     public boolean isTodo() {
         return this == TODO || this == TODO_AWAKENED;
+    }
+
+    public boolean isMaki() {
+        return this == MAKI;
     }
 
     public boolean awakenable() {

@@ -1,5 +1,6 @@
 package com.dowerp.sukuna;
 
+import com.dowerp.sukuna.net.AdminActionPayload;
 import com.mojang.brigadier.CommandDispatcher;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.MinecraftServer;
@@ -79,6 +80,59 @@ public final class AdminCommands {
                 p.sendMessage(Text.translatable(s.noCooldown ? "sukuna.admin.nocd_on" : "sukuna.admin.nocd_off"), true);
                 return 1;
             })));
+    }
+
+    /** Действия окна админ-меню. Права оператора проверяются на сервере. */
+    public static void perform(ServerPlayerEntity p, int action) {
+        MinecraftServer server = Fx.world(p).getServer();
+        if (server == null || !server.getPlayerManager().isOperator(p.getPlayerConfigEntry())) {
+            p.sendMessage(Text.translatable("sukuna.admin.denied"), true);
+            return;
+        }
+        switch (action) {
+            case AdminActionPayload.HEAL_ALL -> {
+                int n = 0;
+                for (ServerPlayerEntity t : server.getPlayerManager().getPlayerList()) {
+                    if (!t.isAlive()) continue;
+                    t.setHealth(t.getMaxHealth());
+                    t.getHungerManager().setFoodLevel(20);
+                    t.getHungerManager().setSaturationLevel(5.0F);
+                    t.extinguish();
+                    n++;
+                }
+                p.sendMessage(Text.translatable("sukuna.admin.healed", n), true);
+            }
+            case AdminActionPayload.CLEAR_COMBAT -> {
+                int n = 0;
+                for (ServerPlayerEntity t : server.getPlayerManager().getPlayerList()) {
+                    Players.get(t).combatUntil = 0L;
+                    n++;
+                }
+                p.sendMessage(Text.translatable("sukuna.admin.combat_cleared", n), true);
+            }
+            case AdminActionPayload.CD_SELF -> {
+                clear(p);
+                p.sendMessage(Text.translatable("sukuna.admin.done", p.getName()), true);
+            }
+            case AdminActionPayload.CD_ALL -> {
+                for (ServerPlayerEntity t : server.getPlayerManager().getPlayerList()) {
+                    clear(t);
+                }
+                p.sendMessage(Text.translatable("sukuna.admin.done", "*"), true);
+            }
+            case AdminActionPayload.CE_SELF -> {
+                SukunaState s = Players.get(p);
+                s.ce = s.maxCe();
+            }
+            case AdminActionPayload.NOCD_TOGGLE -> {
+                SukunaState s = Players.get(p);
+                s.noCooldown = !s.noCooldown;
+                if (s.noCooldown) Arrays.fill(s.cooldowns, 0L);
+                p.sendMessage(Text.translatable(s.noCooldown ? "sukuna.admin.nocd_on" : "sukuna.admin.nocd_off"), true);
+            }
+            default -> {
+            }
+        }
     }
 
     private static void clear(ServerPlayerEntity p) {

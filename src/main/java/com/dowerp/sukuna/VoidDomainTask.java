@@ -57,6 +57,10 @@ public final class VoidDomainTask implements Task, ClashDomain {
         this.center = new Vec3d(owner.getX(), owner.getY() + 4.0, owner.getZ());
     }
 
+    public static boolean isActive(ServerPlayerEntity p) {
+        return ACTIVE.contains(p.getUuid());
+    }
+
     public static boolean cast(ServerPlayerEntity p, SukunaState s) {
         if (!ACTIVE.add(p.getUuid())) {
             return false;

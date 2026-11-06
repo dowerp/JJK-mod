@@ -80,12 +80,15 @@ public final class SukunaHud {
             case TODO, TODO_AWAKENED -> 0xFFE08A00;
             default -> 0xFFC4182A;
         };
-        bar(ctx, bx, ceY, barW, 9, ceFrac, 0xFF0A0A1A, ceColor, 0xFFFFFFFF);
-        ctx.drawCenteredTextWithShadow(tr, Text.literal("CE " + ClientState.ce + " / " + ClientState.maxCe), w / 2, ceY + 1, 0xFFFFFFFF);
+        boolean hasCe = ClientState.maxCe > 0;
+        if (hasCe) {
+            bar(ctx, bx, ceY, barW, 9, ceFrac, 0xFF0A0A1A, ceColor, 0xFFFFFFFF);
+            ctx.drawCenteredTextWithShadow(tr, Text.literal("CE " + ClientState.ce + " / " + ClientState.maxCe), w / 2, ceY + 1, 0xFFFFFFFF);
+        }
 
         if (ClientState.meterTenths >= 0) {
             float mf = Math.max(0.0F, Math.min(1.0F, ClientState.meterTenths / 1000.0F));
-            int meterY = ceY - 9;
+            int meterY = (hasCe ? ceY : hpY) - 9;
             boolean full = mf >= 0.999F;
             int mColor = full && (ClientState.clientTick / 5) % 2 == 0 ? 0xFFD05CFF : 0xFF8E24AA;
             bar(ctx, bx, meterY, barW, 5, mf, 0xFF14081A, mColor, 0xFFE1BEE7);

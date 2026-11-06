@@ -7,6 +7,7 @@ import com.dowerp.sukuna.net.StatePayload;
 import com.dowerp.sukuna.tasks.ChosoTasks;
 import com.dowerp.sukuna.tasks.GojoTasks;
 import com.dowerp.sukuna.tasks.TodoTasks;
+import com.dowerp.sukuna.item.ModItems;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
@@ -56,6 +57,7 @@ public final class Players {
     private static final Identifier MOD_WING_SPEED = SukunaMod.id("choso_wing_speed");
     public static final Identifier MOD_TODO_SPEED = SukunaMod.id("todo_speed");
     public static final Identifier MOD_TODO_JUMP = SukunaMod.id("todo_jump");
+    private static final Identifier MOD_MAKI_SPEED = SukunaMod.id("maki_speed");
     public static final double HEIAN_HEIGHT = 2.5;
 
     private static boolean reentry;
@@ -95,6 +97,18 @@ public final class Players {
         }
         java.util.Arrays.fill(s.cooldowns, 0L);
         s.busyUntil = 0L;
+        if (s.makiSenseUntil > 0L) {
+            p.removeStatusEffect(net.minecraft.entity.effect.StatusEffects.SPEED);
+            p.removeStatusEffect(net.minecraft.entity.effect.StatusEffects.RESISTANCE);
+        }
+        s.makiSenseUntil = 0L;
+        s.sealing = false;
+        s.deferCharge = false;
+        s.infinityOffUntil = 0L;
+        s.m1Chain = 0;
+        s.m1Until = 0L;
+        s.domainMeter = 0.0;
+        s.lowHpAwakenUsed = false;
         p.setAttached(CHARACTER, c.id);
         s.character = c;
         s.form = c.defaultForm();
@@ -106,8 +120,16 @@ public final class Players {
         ChosoTasks.stopAll(s);
         applyFormAttributes(p, s.form);
         s.ce = s.maxCe();
+        if (c == SukunaCharacter.MAKI) {
+            giveKatana(p);
+        }
         p.sendMessage(Text.translatable("sukuna.msg.char_selected", c.displayName()), true);
         sync(p, s);
+    }
+
+    public static void giveKatana(ServerPlayerEntity p) {
+        if (p.getInventory().count(ModItems.SOUL_SPLIT_KATANA) > 0) return;
+        p.getInventory().offerOrDrop(new net.minecraft.item.ItemStack(ModItems.SOUL_SPLIT_KATANA));
     }
 
     public static void init() {
@@ -123,6 +145,9 @@ public final class Players {
             if (st == null) return;
             applyFormAttributes(newPlayer, st.form);
             st.ce = st.maxCe();
+            if (st.form == SukunaForm.MAKI) {
+                giveKatana(newPlayer);
+            }
             newPlayer.setHealth(newPlayer.getMaxHealth());
         });
         
@@ -137,6 +162,9 @@ public final class Players {
                     s.domainLeft = 0;
                     s.busyUntil = 0L;
                     s.lowHpAwakenUsed = false;
+                    s.sealing = false;
+                    s.deferCharge = false;
+                    s.makiSenseUntil = 0L;
                     s.domainMeter = 0.0;
                     s.awakenedViaMeter = false;
                     s.todoBuffUntil = 0L;
@@ -269,6 +297,8 @@ public final class Players {
             armorAttr.removeModifier(MOD_ARMOR);
             if (form == SukunaForm.HEIAN) {
                 armorAttr.addPersistentModifier(new EntityAttributeModifier(MOD_ARMOR, 6.0, EntityAttributeModifier.Operation.ADD_VALUE));
+            } else if (form == SukunaForm.MAKI) {
+                armorAttr.addPersistentModifier(new EntityAttributeModifier(MOD_ARMOR, 2.0, EntityAttributeModifier.Operation.ADD_VALUE));
             }
         }
 
@@ -282,6 +312,10 @@ public final class Players {
 
         EntityAttributeInstance speedAttr = p.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
         if (speedAttr != null) {
+            speedAttr.removeModifier(MOD_MAKI_SPEED);
+            if (form == SukunaForm.MAKI) {
+                speedAttr.addPersistentModifier(new EntityAttributeModifier(MOD_MAKI_SPEED, 0.12, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+            }
             speedAttr.removeModifier(MOD_WING_SPEED);
             if (form == SukunaForm.CHOSO_WING) {
                 speedAttr.addPersistentModifier(new EntityAttributeModifier(MOD_WING_SPEED, 0.45, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
@@ -349,7 +383,7 @@ public final class Players {
             }
             if (p.isAlive()) {
                 if (s.meterOn()) {
-                    if (s.combatUntil <= nowTick && s.domainMeter > 0.0) {
+                    if (s.combatUntil <= nowTick && !s.sealing && s.domainMeter > 0.0) {
                         s.domainMeter = Math.max(0.0, s.domainMeter - 0.05);
                     }
                     lowHpAwaken(p, s, w);
@@ -457,7 +491,7 @@ public final class Players {
             }
         }
 
-        int meterTenths = s.meterOn() ? (int) Math.round(Math.min(SukunaState.METER_MAX, s.domainMeter) * 10.0) : DomainMeterPayload.DISABLED;
+        int meterTenths = s.meterOn() && s.form != SukunaForm.MAKI ? (int) Math.round(Math.min(SukunaState.METER_MAX, s.domainMeter) * 10.0) : DomainMeterPayload.DISABLED;
         if (meterTenths != s.lastMeterSent && ServerPlayNetworking.canSend(p, DomainMeterPayload.ID)) {
             s.lastMeterSent = meterTenths;
             ServerPlayNetworking.send(p, new DomainMeterPayload(meterTenths));

@@ -7,7 +7,7 @@ public enum SukunaCharacter {
     GOJO("gojo", true),
     MEGUMI("megumi", false),
     CHOSO("choso", true),
-    MAKI("maki", false),
+    MAKI("maki", true),
     TODO("todo", true);
 
     public final String id;
@@ -23,6 +23,7 @@ public enum SukunaCharacter {
             case GOJO -> SukunaForm.GOJO;
             case CHOSO -> SukunaForm.CHOSO;
             case TODO -> SukunaForm.TODO;
+            case MAKI -> SukunaForm.MAKI;
             default -> SukunaForm.YUJI;
         };
     }

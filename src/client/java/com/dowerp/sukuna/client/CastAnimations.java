@@ -41,7 +41,7 @@ public final class CastAnimations {
         }
     }
 
-    private static final String[] NAMED = {"cast_runstart", "cast_holdhead", "cast_punch", "cast_kick", "cast_slash"};
+    private static final String[] NAMED = {"cast_runstart", "cast_holdhead", "cast_punch", "cast_kick", "cast_slash", "maki_slash", "maki_ultimate", "maki_attack"};
 
     public static void playNamed(AbstractClientPlayerEntity player, int code) {
         if (code < 0 || code >= NAMED.length) return;
@@ -61,6 +61,15 @@ public final class CastAnimations {
                 case DOMAIN_EXPANSION -> form == SukunaForm.GOJO_AWAKENED ? "cast_seal_gojo" : "cast_clap";
                 case ULTIMATE_SLASH -> "cast_purple";
                 case REVERSE_CURSED -> "cast_charge";
+                default -> null;
+            };
+        }
+        if (form.isMaki()) {
+            return switch (a) {
+                case PRIMARY_ATTACK -> "maki_combo";
+                case SECONDARY_ATTACK -> "maki_dash";
+                case UTILITY_TECHNIQUE -> "maki_sense";
+                case SPECIAL_ATTACK, ULTIMATE_SLASH -> "maki_charge";
                 default -> null;
             };
         }

@@ -78,6 +78,15 @@ public final class DomainTask implements Task, ClashDomain {
         };
     }
 
+    public static boolean hasActive(ServerPlayerEntity p) {
+        for (DomainTask d : ALL) {
+            if (d.owner.getUuid().equals(p.getUuid())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean cast(ServerPlayerEntity p, SukunaState s, boolean open) {
         for (DomainTask d : ALL) {
             if (d.owner == p) {

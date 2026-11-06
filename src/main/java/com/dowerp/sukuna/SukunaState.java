@@ -70,12 +70,15 @@ public final class SukunaState {
     public long lastDamagedAt = Long.MIN_VALUE / 2;
     public boolean mahoragaSeen;
     public long todoBuffUntil;
+    public boolean sealing;
+    public boolean deferCharge;
+    public long makiSenseUntil;
     public final java.util.Map<java.util.UUID, Integer> squeeze = new java.util.HashMap<>();
     public String headVictim = "";
     public long headUntil;
 
     public boolean vessel() {
-        return character == SukunaCharacter.GOJO || fingers > 0;
+        return character == SukunaCharacter.GOJO || character == SukunaCharacter.MAKI || fingers > 0;
     }
 
     public int statFingers() {
@@ -91,12 +94,12 @@ public final class SukunaState {
     }
 
     public void addMeter(double amount) {
-        if (!meterOn() || amount <= 0.0) return;
+        if (!meterOn() || amount <= 0.0 || form == SukunaForm.MAKI) return;
         domainMeter = Math.min(METER_MAX, domainMeter + amount);
     }
 
     public boolean meterFull() {
-        return meterOn() && domainMeter >= METER_MAX - 1.0E-6;
+        return meterOn() && form != SukunaForm.MAKI && domainMeter >= METER_MAX - 1.0E-6;
     }
 
     public boolean held(Ability a) {
@@ -114,6 +117,7 @@ public final class SukunaState {
             case CHOSO_WING -> 380.0;
             case TODO -> 260.0;
             case TODO_AWAKENED -> 420.0;
+            case MAKI -> 0.0;
         };
     }
 
@@ -128,6 +132,7 @@ public final class SukunaState {
             case CHOSO_WING -> 1.5;
             case TODO -> 1.2;
             case TODO_AWAKENED -> 1.6;
+            case MAKI -> 1.5;
         };
         return base * convergenceMul * SukunaMod.config.damageMultiplier;
     }

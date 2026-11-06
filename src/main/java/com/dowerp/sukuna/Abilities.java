@@ -4,6 +4,7 @@ import com.dowerp.sukuna.entity.MahoragaEntity;
 import com.dowerp.sukuna.tasks.ChosoTasks;
 import com.dowerp.sukuna.tasks.GojoTasks;
 import com.dowerp.sukuna.tasks.HeianTasks;
+import com.dowerp.sukuna.tasks.MakiTasks;
 import com.dowerp.sukuna.tasks.SukunaTasks;
 import com.dowerp.sukuna.tasks.TodoTasks;
 import com.dowerp.sukuna.tasks.YujiTasks;
@@ -44,6 +45,11 @@ public final class Abilities {
             return;
         }
 
+        if (!a.availableIn(s.form)) {
+            p.sendMessage(Text.translatable("sukuna.msg.not_available"), true);
+            return;
+        }
+
         if (now < s.cooldowns[index]) {
             long seconds = (s.cooldowns[index] - now + 19L) / 20L;
             p.sendMessage(Text.translatable("sukuna.msg.cooldown", seconds), true);
@@ -55,13 +61,25 @@ public final class Abilities {
             return;
         }
 
+        boolean realDomain = a == Ability.DOMAIN_EXPANSION && !s.form.isChoso();
+        boolean meterDomain = realDomain && s.meterOn();
+        if (realDomain) {
+            if (s.sealing) {
+                p.sendMessage(Text.translatable("sukuna.msg.busy"), true);
+                return;
+            }
+            if (meterDomain && !s.meterFull()) {
+                p.sendMessage(Text.translatable("sukuna.msg.domain_meter_required"), true);
+                return;
+            }
+        }
         boolean openDomain = s.openDomainReady();
-        boolean meterDomain = a == Ability.DOMAIN_EXPANSION && s.meterFull() && !s.form.isChoso() && a.availableIn(s.form);
         if (!SukunaMod.config.freeCursedEnergy && !meterDomain && s.ce < a.costFor(s.form, openDomain)) {
             p.sendMessage(Text.translatable("sukuna.msg.no_energy"), true);
             return;
         }
 
+        s.deferCharge = false;
         boolean ok = switch (s.form) {
             case YUJI -> dispatchYuji(a, p, s, w, now);
             case SUKUNA -> dispatchSukuna(a, p, s, w, now);
@@ -69,12 +87,19 @@ public final class Abilities {
             case GOJO, GOJO_AWAKENED -> dispatchGojo(a, p, s, w);
             case CHOSO, CHOSO_WING -> dispatchChoso(a, p, s, w);
             case TODO, TODO_AWAKENED -> dispatchTodo(a, p, s, w);
+            case MAKI -> dispatchMaki(a, p, s);
         };
 
+        if (ok && s.deferCharge) {
+            s.deferCharge = false;
+            AbilitySounds.play(w, p, s.form, a);
+            Players.broadcastAnim(p, a, s.form);
+            return;
+        }
         if (ok) {
             AbilitySounds.play(w, p, s.form, a);
             if (meterDomain) {
-                s.domainMeter = Math.max(0.0, s.domainMeter - 60.0);
+                s.domainMeter = Math.max(0.0, s.domainMeter - SukunaState.METER_MAX);
             } else {
                 s.ce = Math.max(0.0, s.ce - a.costFor(s.form, openDomain));
             }
@@ -88,12 +113,6 @@ public final class Abilities {
                     if (i != index) s.cooldowns[i] = 0L;
                 }
                 p.sendMessage(Text.translatable("sukuna.msg.ultimate_refresh"), true);
-            }
-            if (s.form.isChoso() && a == Ability.SPECIAL_ATTACK) {
-                s.cooldowns[index] += s.form == SukunaForm.CHOSO_WING ? ChosoTasks.STACK_TICKS : ChosoTasks.RED_SCALE_TICKS;
-            }
-            if (s.form.isChoso() && a == Ability.DOMAIN_EXPANSION) {
-                s.cooldowns[index] += ChosoTasks.HARDEN_TICKS;
             }
             if (a != Ability.WHEEL_ADAPTATION && a != Ability.REVERSE_CURSED) {
                 s.busyUntil = Math.max(s.busyUntil, now + 18L);
@@ -113,12 +132,55 @@ public final class Abilities {
             case UTILITY_TECHNIQUE -> GojoTasks.castCombo(p, s);
             case SPECIAL_ATTACK -> GojoTasks.castStepKick(p, s);
             case ULTIMATE_SLASH -> GojoTasks.castPurple(p, s);
-            case DOMAIN_EXPANSION -> max ? Seals.then(p, s, () -> VoidDomainTask.cast(p, s)) : GojoTasks.castInstantDomain(p, s);
+            case DOMAIN_EXPANSION -> max ? deferDomain(p, s, false, () -> VoidDomainTask.cast(p, s)) : GojoTasks.castInstantDomain(p, s);
             case REVERSE_CURSED -> reverse(p, s, w, max ? 30.0F : 16.0F);
             default -> {
                 p.sendMessage(Text.translatable("sukuna.msg.gojo_no_technique"), true);
                 yield false;
             }
+        };
+    }
+
+    private static boolean domainActive(ServerPlayerEntity p, SukunaState s) {
+        return DomainTask.hasActive(p) || VoidDomainTask.isActive(p) || s.domainLeft > 0;
+    }
+
+    /** Территория с печатями: проверка заранее, оплата и КД только после реального создания. */
+    private static boolean deferDomain(ServerPlayerEntity p, SukunaState s, boolean open, java.util.function.BooleanSupplier cast) {
+        if (domainActive(p, s)) {
+            p.sendMessage(Text.translatable("sukuna.msg.domain_active"), true);
+            return false;
+        }
+        if ((s.form == SukunaForm.SUKUNA || s.form == SukunaForm.HEIAN) && !p.isOnGround()) {
+            p.sendMessage(Text.translatable("sukuna.msg.need_ground"), true);
+            return false;
+        }
+        boolean started = Seals.thenCast(p, s, cast, () -> commitDomain(p, s, open));
+        if (started) {
+            s.deferCharge = true;
+        }
+        return started;
+    }
+
+    private static void commitDomain(ServerPlayerEntity p, SukunaState s, boolean open) {
+        long now = Fx.world(p).getTime();
+        Ability a = Ability.DOMAIN_EXPANSION;
+        if (s.meterOn()) {
+            s.domainMeter = 0.0;
+        } else {
+            s.ce = Math.max(0.0, s.ce - a.costFor(s.form, open));
+        }
+        s.cooldowns[a.ordinal()] = s.noCooldown ? 0L : now + a.cooldownFor(s.form, open);
+    }
+
+    private static boolean dispatchMaki(Ability a, ServerPlayerEntity p, SukunaState s) {
+        return switch (a) {
+            case PRIMARY_ATTACK -> MakiTasks.castCombo(p, s);
+            case SECONDARY_ATTACK -> MakiTasks.castDashSlash(p, s);
+            case UTILITY_TECHNIQUE -> MakiTasks.castSense(p, s);
+            case SPECIAL_ATTACK -> MakiTasks.castSoulSplit(p, s);
+            case ULTIMATE_SLASH -> MakiTasks.castAbsoluteSlash(p, s);
+            default -> false;
         };
     }
 
@@ -197,7 +259,7 @@ public final class Abilities {
                 p.sendMessage(Text.translatable("sukuna.msg.not_in_yuji"), true);
                 yield false;
             }
-            case DOMAIN_EXPANSION -> Seals.then(p, s, () -> YujiTasks.castYujiDomain(p, s));
+            case DOMAIN_EXPANSION -> deferDomain(p, s, false, () -> YujiTasks.castYujiDomain(p, s));
             case WHEEL_ADAPTATION, SUMMON_MAHORAGA -> {
                 p.sendMessage(Text.translatable("sukuna.msg.no_shadows_yuji"), true);
                 yield false;
@@ -216,7 +278,7 @@ public final class Abilities {
             case ULTIMATE_SLASH -> WorldSlashTask.cast(p, s, false);
             case DOMAIN_EXPANSION -> {
                 boolean open = s.openDomainReady();
-                yield Seals.then(p, s, () -> DomainTask.cast(p, s, open));
+                yield deferDomain(p, s, open, () -> DomainTask.cast(p, s, open));
             }
             case OPEN_DOMAIN -> {
                 p.sendMessage(Text.translatable("sukuna.msg.open_replaces_closed"), true);
@@ -242,7 +304,7 @@ public final class Abilities {
             case UTILITY_TECHNIQUE -> WebTask.cast(p, s);
             case SPECIAL_ATTACK -> FugaTask.cast(p, s);
             case ULTIMATE_SLASH -> HeianTasks.castTrueWorldSlash(p, s);
-            case DOMAIN_EXPANSION -> Seals.then(p, s, () -> DomainTask.cast(p, s, true));
+            case DOMAIN_EXPANSION -> deferDomain(p, s, true, () -> DomainTask.cast(p, s, true));
             case OPEN_DOMAIN -> {
                 p.sendMessage(Text.translatable("sukuna.msg.heian_domain_open"), true);
                 yield false;
@@ -261,6 +323,10 @@ public final class Abilities {
 
     private static void handleTransform(ServerPlayerEntity p, SukunaState s, ServerWorld w) {
         long now = w.getTime();
+        if (s.form == SukunaForm.MAKI) {
+            p.sendMessage(Text.translatable("sukuna.msg.maki_no_transform"), true);
+            return;
+        }
         if (s.form.isGojo()) {
             GojoTasks.transform(p, s, w);
             return;

@@ -22,10 +22,13 @@ public final class M1 {
 
     public static void handle(ServerPlayerEntity p) {
         if (SukunaMod.config.legacyBindings) return;
-        if (!p.isAlive() || p.isSpectator() || !p.getMainHandStack().isEmpty()) return;
+        if (!p.isAlive() || p.isSpectator()) return;
+        boolean katana = p.getMainHandStack().isOf(com.dowerp.sukuna.item.ModItems.SOUL_SPLIT_KATANA);
+        if (!p.getMainHandStack().isEmpty() && !katana) return;
         SukunaState s = Players.get(p);
         s.character = Players.character(p);
         if (!s.character.playable || s.charging || s.piercingCharging) return;
+        if (katana && s.form != SukunaForm.MAKI) return;
         ServerWorld w = Fx.world(p);
         long now = w.getTime();
         if (now < s.m1Until) return;
@@ -37,7 +40,11 @@ public final class M1 {
         s.m1ChainUntil = now + CHAIN_WINDOW_TICKS;
 
         double dmg = ThreadLocalRandom.current().nextDouble(4.0, 6.0) * s.power();
-        Dmg.hit(p, t, dmg);
+        if (s.form == SukunaForm.MAKI) {
+            Dmg.physical(p, t, dmg);
+        } else {
+            Dmg.hit(p, t, dmg);
+        }
 
         Vec3d push = new Vec3d(t.getX() - p.getX(), 0.0, t.getZ() - p.getZ());
         if (push.lengthSquared() > 1.0E-4) {
@@ -48,7 +55,7 @@ public final class M1 {
 
         p.swingHand(Hand.MAIN_HAND, true);
         boolean blade = s.form == SukunaForm.SUKUNA || s.form == SukunaForm.HEIAN;
-        int anim = blade ? ANIM_SLASH : (s.m1Chain % 2 == 0 ? ANIM_PUNCH : ANIM_KICK);
+        int anim = s.form == SukunaForm.MAKI ? com.dowerp.sukuna.tasks.MakiTasks.ANIM_ATTACK : blade ? ANIM_SLASH : (s.m1Chain % 2 == 0 ? ANIM_PUNCH : ANIM_KICK);
         Players.broadcastNamedAnim(p, anim);
     }
 }

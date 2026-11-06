@@ -16,6 +16,8 @@ public final class ModItems {
     public static final Item SUKUNA_FINGER = register("sukuna_finger", FingerItem::new, new Item.Settings().maxCount(20).rarity(Rarity.EPIC));
     public static final Item SWORD_OF_EXTERMINATION = register("sword_of_extermination", Item::new, new Item.Settings().maxCount(1).rarity(Rarity.EPIC));
 
+    public static final Item SOUL_SPLIT_KATANA = register("soul_split_katana", Item::new, new Item.Settings().maxCount(1).rarity(Rarity.EPIC));
+
     private ModItems() {
     }
 
@@ -28,5 +30,6 @@ public final class ModItems {
     public static void init() {
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.INGREDIENTS).register(entries -> entries.add(SUKUNA_FINGER));
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(SWORD_OF_EXTERMINATION));
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(SOUL_SPLIT_KATANA));
     }
 }

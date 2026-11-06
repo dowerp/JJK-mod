@@ -27,6 +27,12 @@ public enum Ability {
     }
 
     public boolean availableIn(SukunaForm form) {
+        if (form == SukunaForm.MAKI) {
+            return switch (this) {
+                case PRIMARY_ATTACK, SECONDARY_ATTACK, UTILITY_TECHNIQUE, SPECIAL_ATTACK, ULTIMATE_SLASH -> true;
+                default -> false;
+            };
+        }
         if (form == SukunaForm.CHOSO || form == SukunaForm.CHOSO_WING) {
             boolean wing = form == SukunaForm.CHOSO_WING;
             return switch (this) {
@@ -66,6 +72,9 @@ public enum Ability {
     }
 
     public int costFor(SukunaForm form, boolean openDomain) {
+        if (form == SukunaForm.MAKI) {
+            return 0;
+        }
         if ((form == SukunaForm.HEIAN || (form == SukunaForm.SUKUNA && openDomain)) && this == DOMAIN_EXPANSION) {
             return OPEN_DOMAIN.cost;
         }
@@ -137,82 +146,114 @@ public enum Ability {
         return cooldownFor(form, false);
     }
 
-    public static final double COOLDOWN_SCALE = 1.6;
-    public static final double COOLDOWN_SCALE_OTHERS = 2.6;
-
-    public int cooldownFor(SukunaForm form, boolean openDomain) {
-        if (form.isTodo()) {
-            return baseCooldownFor(form, openDomain);
-        }
-        double scale = form.isGojo() ? COOLDOWN_SCALE : COOLDOWN_SCALE_OTHERS;
-        return (int) Math.round(baseCooldownFor(form, openDomain) * scale);
+    private static int t(double seconds) {
+        return (int) Math.round(seconds * 20.0);
     }
 
-    private int baseCooldownFor(SukunaForm form, boolean openDomain) {
-        if ((form == SukunaForm.HEIAN || (form == SukunaForm.SUKUNA && openDomain)) && this == DOMAIN_EXPANSION) {
-            return OPEN_DOMAIN.cooldown;
-        }
-        if (form.isTodo()) {
-            return switch (this) {
-                case PRIMARY_ATTACK -> 160;
-                case SECONDARY_ATTACK -> 240;
-                case UTILITY_TECHNIQUE -> 120;
-                case SPECIAL_ATTACK -> 500;
-                case REVERSE_CURSED -> 80;
-                case ULTIMATE_SLASH -> 400;
-                default -> cooldown;
+    /** Фактический КД в тиках (20 тиков = 1 с). Значения заданы явно для каждой формы, без скрытых множителей. */
+    public int cooldownFor(SukunaForm form, boolean openDomain) {
+        double sec = switch (form) {
+            case YUJI -> switch (this) {
+                case PRIMARY_ATTACK -> 1;
+                case SECONDARY_ATTACK -> 3;
+                case UTILITY_TECHNIQUE -> 10;
+                case SPECIAL_ATTACK -> 12;
+                case ULTIMATE_SLASH -> 45;
+                case DOMAIN_EXPANSION -> 120;
+                case REVERSE_CURSED -> 12;
+                default -> 10;
             };
-        }
-        if (form == SukunaForm.CHOSO) {
-            return switch (this) {
-                case PRIMARY_ATTACK -> 100;
-                case SECONDARY_ATTACK -> 80;
-                case UTILITY_TECHNIQUE -> 60;
-                case SPECIAL_ATTACK -> 40;
-                case DOMAIN_EXPANSION -> 40;
-                case REVERSE_CURSED -> 100;
-                default -> cooldown;
+            case SUKUNA -> switch (this) {
+                case PRIMARY_ATTACK -> 1;
+                case SECONDARY_ATTACK -> 3;
+                case UTILITY_TECHNIQUE -> 10;
+                case SPECIAL_ATTACK -> 20;
+                case ULTIMATE_SLASH -> 55;
+                case DOMAIN_EXPANSION -> openDomain ? 210 : 150;
+                case OPEN_DOMAIN -> 210;
+                case WHEEL_ADAPTATION -> 3;
+                case SUMMON_MAHORAGA -> 120;
+                case DISMANTLE_STORM -> 25;
+                case BLACK_FLASH -> 30;
+                case REVERSE_CURSED -> 14;
+                default -> 10;
             };
-        }
-        if (form == SukunaForm.CHOSO_WING) {
-            return switch (this) {
-                case PRIMARY_ATTACK -> 60;
-                case SECONDARY_ATTACK -> 50;
-                case UTILITY_TECHNIQUE -> 40;
-                case SPECIAL_ATTACK -> 40;
-                case DOMAIN_EXPANSION -> 40;
-                case REVERSE_CURSED -> 60;
-                case ULTIMATE_SLASH -> 400;
-                case OPEN_DOMAIN -> 200;
-                case DISMANTLE_STORM -> 160;
-                case BLACK_FLASH -> 600;
-                default -> cooldown;
+            case HEIAN -> switch (this) {
+                case PRIMARY_ATTACK -> 1;
+                case SECONDARY_ATTACK -> 4;
+                case UTILITY_TECHNIQUE -> 12;
+                case SPECIAL_ATTACK -> 22;
+                case ULTIMATE_SLASH -> 65;
+                case DOMAIN_EXPANSION, OPEN_DOMAIN -> 180;
+                case DISMANTLE_STORM -> 25;
+                case BLACK_FLASH -> 30;
+                case FOUR_ARM_FLURRY -> 40;
+                case REVERSE_CURSED -> 10;
+                default -> 10;
             };
-        }
-        if (form == SukunaForm.GOJO) {
-            return switch (this) {
-                case PRIMARY_ATTACK -> 160;
-                case SECONDARY_ATTACK -> 200;
-                case UTILITY_TECHNIQUE -> 120;
-                case SPECIAL_ATTACK -> 100;
-                case DOMAIN_EXPANSION -> 1200;
-                case REVERSE_CURSED -> 40;
-                default -> cooldown;
+            case GOJO -> switch (this) {
+                case PRIMARY_ATTACK -> 9;
+                case SECONDARY_ATTACK -> 14;
+                case UTILITY_TECHNIQUE -> 8;
+                case SPECIAL_ATTACK -> 6;
+                case ULTIMATE_SLASH -> 45;
+                case DOMAIN_EXPANSION -> 75;
+                case REVERSE_CURSED -> 5;
+                default -> 10;
             };
-        }
-        if (form == SukunaForm.GOJO_AWAKENED) {
-            return switch (this) {
-                case PRIMARY_ATTACK -> 100;
-                case SECONDARY_ATTACK -> 120;
-                case UTILITY_TECHNIQUE -> 60;
-                case SPECIAL_ATTACK -> 60;
-                case ULTIMATE_SLASH -> 400;
-                case DOMAIN_EXPANSION -> 2400;
-                case REVERSE_CURSED -> 20;
-                default -> cooldown;
+            case GOJO_AWAKENED -> switch (this) {
+                case PRIMARY_ATTACK -> 7;
+                case SECONDARY_ATTACK -> 10;
+                case UTILITY_TECHNIQUE -> 6;
+                case SPECIAL_ATTACK -> 6;
+                case ULTIMATE_SLASH -> 45;
+                case DOMAIN_EXPANSION -> 135;
+                case REVERSE_CURSED -> 3;
+                default -> 10;
             };
-        }
-        return cooldown;
+            // Длительность баффа (Красная чешуя 25 с, Закалка 20 с) входит в КД: КД считается от момента каста.
+            case CHOSO -> switch (this) {
+                case PRIMARY_ATTACK -> 6;
+                case SECONDARY_ATTACK -> 8;
+                case UTILITY_TECHNIQUE -> 6;
+                case SPECIAL_ATTACK -> 30;
+                case DOMAIN_EXPANSION -> 35;
+                case ULTIMATE_SLASH -> 45;
+                case REVERSE_CURSED -> 10;
+                default -> 10;
+            };
+            case CHOSO_WING -> switch (this) {
+                case PRIMARY_ATTACK -> 5;
+                case SECONDARY_ATTACK -> 6;
+                case UTILITY_TECHNIQUE -> 5;
+                case SPECIAL_ATTACK -> 25;
+                case DOMAIN_EXPANSION -> 30;
+                case ULTIMATE_SLASH -> 50;
+                case OPEN_DOMAIN -> 30;
+                case DISMANTLE_STORM -> 20;
+                case BLACK_FLASH -> 60;
+                case REVERSE_CURSED -> 6;
+                default -> 10;
+            };
+            case TODO, TODO_AWAKENED -> switch (this) {
+                case PRIMARY_ATTACK -> 8;
+                case SECONDARY_ATTACK -> 12;
+                case UTILITY_TECHNIQUE -> 6;
+                case SPECIAL_ATTACK -> 25;
+                case ULTIMATE_SLASH -> 40;
+                case REVERSE_CURSED -> 4;
+                default -> 10;
+            };
+            case MAKI -> switch (this) {
+                case PRIMARY_ATTACK -> 1.25;
+                case SECONDARY_ATTACK -> 4;
+                case UTILITY_TECHNIQUE -> 22;
+                case SPECIAL_ATTACK -> 16;
+                case ULTIMATE_SLASH -> 50;
+                default -> 10;
+            };
+        };
+        return t(sec);
     }
 
     public String nameKey(SukunaForm form) {

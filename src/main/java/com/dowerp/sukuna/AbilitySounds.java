@@ -26,6 +26,8 @@ public final class AbilitySounds {
             choso(w, p, a);
         } else if (form.isTodo()) {
             todo(w, p, a);
+        } else if (form.isMaki()) {
+            maki(w, p, a);
         } else if (form == SukunaForm.YUJI) {
             yuji(w, p, a);
         } else {
@@ -93,6 +95,18 @@ public final class AbilitySounds {
             case ULTIMATE_SLASH -> snd(w, p, SoundEvents.BLOCK_BEACON_POWER_SELECT, 1.5F, 0.5F);
             case DOMAIN_EXPANSION -> snd(w, p, SoundEvents.BLOCK_BELL_RESONATE, 2.0F, 0.5F);
             case REVERSE_CURSED -> snd(w, p, SoundEvents.ENTITY_PLAYER_LEVELUP, 1.0F, 1.2F);
+            default -> {
+            }
+        }
+    }
+
+    private static void maki(ServerWorld w, ServerPlayerEntity p, Ability a) {
+        switch (a) {
+            case PRIMARY_ATTACK -> snd(w, p, SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, 1.0F, 1.4F);
+            case SECONDARY_ATTACK -> snd(w, p, SoundEvents.ITEM_TRIDENT_RIPTIDE_1, 1.0F, 1.6F);
+            case UTILITY_TECHNIQUE -> snd(w, p, SoundEvents.BLOCK_BEACON_POWER_SELECT, 1.0F, 1.8F);
+            case SPECIAL_ATTACK -> snd(w, p, SoundEvents.ITEM_TRIDENT_THROW, 1.0F, 0.8F);
+            case ULTIMATE_SLASH -> snd(w, p, SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, 1.0F, 1.1F);
             default -> {
             }
         }
