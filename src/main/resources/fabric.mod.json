@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "sukuna",
+  "version": "${version}",
+  "name": "JJK Mod",
+  "description": "Jujutsu Kaisen for Minecraft: playable sorcerers (Itadori/Sukuna, Gojo, Choso, Todo, Maki) with their own techniques, forms and domain expansions, a domain meter, Black Flash streaks, counters and a character info window.",
+  "authors": [
+    "Dowerp"
+  ],
+  "license": "MIT",
+  "icon": "assets/sukuna/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.dowerp.sukuna.SukunaMod"
+    ],
+    "client": [
+      "com.dowerp.sukuna.client.SukunaClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*",
+    "geckolib": ">=5.4.5",
+    "player_animation_library": ">=1.1.11"
+  }
+}
